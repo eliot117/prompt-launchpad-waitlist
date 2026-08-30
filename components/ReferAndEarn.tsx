@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { referralTextToCopy } from "@/lib/referral";
 
 type Step = {
   bg: string;
@@ -60,9 +61,9 @@ const STEPS: Step[] = [
   },
 ];
 
-type Props = { referralCode: string | null };
+type Props = { referralLink: string | null };
 
-export default function ReferAndEarn({ referralCode }: Props) {
+export default function ReferAndEarn({ referralLink }: Props) {
   const [copied, setCopied] = useState(false);
   const [filled, setFilled] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -71,12 +72,9 @@ export default function ReferAndEarn({ referralCode }: Props) {
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   // Falls back to the design's literal string until a signup produces a real
-  // code. Copy here is the design's to change, not this component's.
-  const [origin, setOrigin] = useState("");
-  useEffect(() => setOrigin(window.location.origin), []);
-
-  const display =
-    referralCode && origin ? `${origin}/?ref=${referralCode}` : "elia.ai/invite";
+  // code. Built in lib/referral so this row, the roadmap share button and the
+  // footer share button can never drift apart on what they copy.
+  const display = referralTextToCopy(referralLink);
 
   const onCopy = () => {
     navigator.clipboard?.writeText(display).catch(() => {});

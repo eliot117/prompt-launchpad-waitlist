@@ -26,7 +26,19 @@ export type Signup = {
   referral_count: number;
 };
 
-export type JoinResult = Signup & { already_joined: boolean };
+export type JoinResult = Signup & {
+  already_joined: boolean;
+  /** False until they click the link in the verification email. */
+  email_verified: boolean;
+};
+
+export type VerifyStatus = "verified" | "already_verified" | "expired" | "invalid";
+
+export type VerifyResult = {
+  status: VerifyStatus;
+  referral_code: string | null;
+  referral_count: number | null;
+};
 
 export function messageForError(err: unknown): string {
   const raw =
@@ -36,6 +48,9 @@ export function messageForError(err: unknown): string {
 
   if (raw.includes("invalid_email")) {
     return "That doesn't look like an email address.";
+  }
+  if (raw.includes("rate_limited")) {
+    return "Too many signups from this connection. Try again in an hour.";
   }
   if (
     raw.includes("Failed to fetch") ||
@@ -47,19 +62,43 @@ export function messageForError(err: unknown): string {
   return "Something went wrong. Try that again in a moment.";
 }
 
+/**
+ * `origin` is where the emailed verification link should point. The server
+ * only honours it in a strict `http(s)://host[:port]` shape, and ignores it
+ * entirely once a SITE_URL is configured in Vault — a caller must never be
+ * able to aim a real verification email at a domain of their choosing.
+ */
 export async function joinWaitlist(
   email: string,
   referredBy: string | null,
+  origin: string | null,
 ): Promise<JoinResult> {
   const { data, error } = await getClient().rpc("join_waitlist", {
     p_email: email,
     p_referred_by: referredBy,
+    p_origin: origin,
   });
   if (error) throw error;
 
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) throw new Error("empty response from join_waitlist");
   return row as JoinResult;
+}
+
+/** Called from the /verify route handler, not the browser. */
+export async function verifyEmail(
+  token: string,
+  origin: string | null,
+): Promise<VerifyResult> {
+  const { data, error } = await getClient().rpc("verify_email", {
+    p_token: token,
+    p_origin: origin,
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("empty response from verify_email");
+  return row as VerifyResult;
 }
 
 /** Requires the referral code as proof of ownership. */

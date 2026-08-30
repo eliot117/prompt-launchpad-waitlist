@@ -11,9 +11,39 @@ import BeforeAfter from "@/components/BeforeAfter";
 import ReferAndEarn from "@/components/ReferAndEarn";
 import ShareButton from "@/components/ShareButton";
 import { joinWaitlist, waitlistCount } from "@/lib/supabase";
+import { buildReferralLink } from "@/lib/referral";
 
 const STORAGE_KEY = "pl_waitlist_signup";
+const REF_KEY = "pl_referral_ref";
+const REF_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Referral attribution used to live only in the URL, so it survived exactly
+ * one page load: click a link, wander off, come back from a bookmark, and the
+ * referrer silently lost the credit. Stashing it on arrival and falling back
+ * to it at submit time closes that. Stored with a timestamp so a link clicked
+ * months ago doesn't attribute a signup that has nothing to do with it.
+ */
+function rememberRef(code: string) {
+  try {
+    localStorage.setItem(REF_KEY, JSON.stringify({ code, ts: Date.now() }));
+  } catch {
+    // Storage unavailable (private mode, blocked cookies): the URL still works.
+  }
+}
+
+function recallRef(): string | null {
+  try {
+    const saved = localStorage.getItem(REF_KEY);
+    if (!saved) return null;
+    const { code, ts } = JSON.parse(saved) as { code?: string; ts?: number };
+    if (!code || typeof ts !== "number" || Date.now() - ts > REF_TTL_MS) return null;
+    return code;
+  } catch {
+    return null;
+  }
+}
 
 /** Grouped by hand so server and client agree regardless of the active locale. */
 const grouped = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -38,6 +68,12 @@ export default function Home() {
     }
   }, []);
 
+  // Capture on arrival, not at submit time: by then the ?ref= may be long gone.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) rememberRef(ref);
+  }, []);
+
   const refreshCount = useCallback(async () => {
     const n = await waitlistCount();
     if (n !== null) setRealSignups(n);
@@ -51,7 +87,9 @@ export default function Home() {
 
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
-  const referralLink = referralCode && origin ? `${origin}/?ref=${referralCode}` : null;
+  // Single source of truth (lib/referral): the roadmap share button, the footer
+  // share button and the Refer & Earn row all copy this exact string.
+  const referralLink = buildReferralLink(origin, referralCode);
 
   const fireConfetti = useCallback(() => {
     const rect = btnRef.current?.getBoundingClientRect();
@@ -74,8 +112,8 @@ export default function Home() {
     setPending(true);
     try {
       const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref");
-      const result = await joinWaitlist(email, ref);
+      const ref = params.get("ref") ?? recallRef();
+      const result = await joinWaitlist(email, ref, window.location.origin);
       setReferralCode(result.referral_code);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(result));
@@ -140,13 +178,13 @@ export default function Home() {
 
             <div style={{ position: "relative", textAlign: "center", padding: "52px 0 0" }}>
               <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.22, fontWeight: 500, letterSpacing: -1, color: "#141416" }}>
-                Revolutionizing Supply
+                Revolutionizing How You
                 <br />
-                Chain <ScrambleText text="Master Prompts" color="#1877f2" phase={0} period={5200} /> with{" "}
+                Write Prompts, with <ScrambleText text="Master Prompts" color="#1877f2" phase={0} period={5200} /> using{" "}
                 <ScrambleText text="Elia" color="#141416" phase={2000} period={5200} />
               </h1>
               <p style={{ position: "relative", margin: "22px auto 0", fontSize: 11.5, lineHeight: 1.85, fontWeight: 300, color: "#5b5f66", padding: "26px 60px", maxWidth: 520, boxSizing: "border-box", background: "radial-gradient(closest-side, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 45%, rgba(255,255,255,0) 100%)" }}>
-                A-Sup is an AI-powered solution designed to improve demand forecasting, inventory optimization, and real-time visibility across the supply chain.
+                Prompt Launchpad is an AI-powered solution designed to refine your raw input, structure your prompts, and generate production-ready Master Prompts for any AI model.
               </p>
               <a href="#early" className="shiny-btn" style={{ display: "inline-block", marginTop: 26, backgroundColor: "#1877f2", color: "#ffffff", fontSize: 16, fontWeight: 500, padding: "17px 32px", borderRadius: 10, whiteSpace: "nowrap", border: "none", transition: "background-position 0.3s" }}>
                 Get Early Access
@@ -159,7 +197,7 @@ export default function Home() {
           </div>
 
           <BeforeAfter />
-          <ReferAndEarn referralCode={referralCode} />
+          <ReferAndEarn referralLink={referralLink} />
         </div>
 
         <div
@@ -179,12 +217,12 @@ export default function Home() {
           }}
         >
           <h2 style={{ margin: 0, fontSize: 33, lineHeight: 1.28, fontWeight: 500, letterSpacing: -0.8, color: "#ffffff" }}>
-            Revolutionizing Supply Chain
+            Revolutionizing Prompt
             <br />
-            Optimization with AI.
+            Engineering with AI.
           </h2>
           <p style={{ margin: "18px 0 0", fontSize: 10, fontWeight: 300, color: "#e2eeff" }}>
-            Join to experience the seamless streamlines Supply Chain Optimization
+            Join to experience the seamless power of AI-perfected prompts.
           </p>
 
           <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center", gap: 10, margin: "26px auto 0", width: "fit-content" }}>

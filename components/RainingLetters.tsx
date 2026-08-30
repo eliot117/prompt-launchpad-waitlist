@@ -99,9 +99,9 @@ export default function RainingLetters({
     };
 
     // The field is decorative and costs a full rAF pass plus a 60ms interval, so
-    // it only runs while it is actually on screen. `onScreen` and `tabVisible`
-    // are tracked separately because either one alone can stop it, and both must
-    // agree before it starts again.
+    // it only runs while it's actually worth animating. `onScreen` and
+    // `tabVisible` are tracked separately because either one alone can stop
+    // it, and both must agree before it starts again.
     let flicker = 0;
     let running = false;
     let onScreen = true;
@@ -121,16 +121,26 @@ export default function RainingLetters({
     };
     const sync = () => (onScreen && tabVisible ? start() : stop());
 
-    // threshold 0 fires the moment any sliver re-enters, so coming back from a
-    // scroll, a tab switch, or a window refocus resumes immediately.
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        onScreen = entry.isIntersecting;
+    // "On screen" is keyed to the Before/After section's own floating slider
+    // track, not to this component's own visibility — the letters should
+    // keep running for as long as the hero is the focus, and only stop once
+    // the user has scrolled far enough that section's slider has faded in
+    // (matching BeforeAfter.tsx's own `top - 40` fade-in threshold exactly),
+    // staying stopped for everything below that point. Scrolling back above
+    // that line resumes it immediately, same as before.
+    const checkScroll = () => {
+      const section = document.getElementById("before-after");
+      if (!section) {
+        onScreen = true;
         sync();
-      },
-      { threshold: 0 },
-    );
-    io.observe(host);
+        return;
+      }
+      const sectionDocTop = section.getBoundingClientRect().top + window.scrollY;
+      onScreen = window.scrollY < sectionDocTop - 40;
+      sync();
+    };
+    window.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
 
     const onVisibility = () => {
       tabVisible = !document.hidden;
@@ -138,11 +148,12 @@ export default function RainingLetters({
     };
     document.addEventListener("visibilitychange", onVisibility);
 
-    sync();
+    checkScroll();
 
     return () => {
       stop();
-      io.disconnect();
+      window.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
       document.removeEventListener("visibilitychange", onVisibility);
       for (const c of chars) c.el.remove();
     };

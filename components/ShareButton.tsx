@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { referralTextToCopy } from "@/lib/referral";
 
 type Props = {
   /** Text to copy. Falls back to a display-only template string if null. */
@@ -42,7 +43,7 @@ export default function ShareButton({ link, variant, iconSize }: Props) {
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const onClick = () => {
-    const text = link ?? "elia.ai/invite";
+    const text = referralTextToCopy(link);
     navigator.clipboard?.writeText(text).catch(() => {});
     clearTimeout(timer.current);
     setCopied(true);
