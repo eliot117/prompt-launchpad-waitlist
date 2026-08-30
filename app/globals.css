@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #1877f2;
+  --color-brand-deep: #0f63d6;
+  --color-brand-deeper: #0c58c2;
+  --color-brand-tint: #eef6fd;
+  --color-brand-wash: #eaf2fe;
+
+  --color-ink: #141416;
+  --color-ink-2: #1b1b1f;
+  --color-body: #3c3c43;
+  --color-muted: #5b5f66;
+  --color-muted-2: #6b6f76;
+  --color-muted-3: #9aa0aa;
+
+  --color-line: #dcdee3;
+  --color-line-soft: #eef0f3;
+  --color-error: #ff8a8a;
+
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #1b1b1f;
+  text-decoration: none;
+}
+a:hover {
+  color: #1877f2;
+}
+
+::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@keyframes shinyMove {
+  to {
+    background-position: 280% center;
+  }
+}
+
+@keyframes revealRight {
+  from {
+    opacity: 0;
+    transform: translateX(-26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes roadmapSparkle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(6px, 0) scale(1) rotate(20deg);
+  }
+  55% {
+    opacity: 1;
+    transform: translate(20px, 0) scale(0.85) rotate(35deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(38px, 0) scale(0.3) rotate(55deg);
+  }
+}
+
+.shiny-btn:hover {
+  background-image: linear-gradient(325deg, #0044ff 0%, #2ccfff 55%, #0044ff 90%);
+  background-size: 280% auto;
+  background-position: 0% center;
+  animation: shinyMove 1.4s linear infinite;
+  box-shadow:
+    0px 0px 20px rgba(71, 184, 255, 0.5),
+    0px 5px 5px -1px rgba(58, 125, 233, 0.25),
+    inset 4px 4px 8px rgba(175, 230, 255, 0.5),
+    inset -4px -4px 8px rgba(19, 95, 216, 0.35);
+  color: #ffffff !important;
+}
+
+/* The design's continuous canvas/mesh motion and the scramble cycle are
+   decorative; honour a reduced-motion preference rather than overriding it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
