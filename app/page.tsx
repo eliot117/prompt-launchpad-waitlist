@@ -178,9 +178,9 @@ export default function Home() {
 
             <div style={{ position: "relative", textAlign: "center", padding: "52px 0 0" }}>
               <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.22, fontWeight: 500, letterSpacing: -1, color: "#141416" }}>
-                Revolutionizing How You
+                Revolutionizing How You Write Prompts,
                 <br />
-                Write Prompts, with <ScrambleText text="Master Prompts" color="#1877f2" phase={0} period={5200} /> using{" "}
+                with <ScrambleText text="Master Prompts" color="#1877f2" phase={0} period={5200} /> using{" "}
                 <ScrambleText text="Elia" color="#141416" phase={2000} period={5200} />
               </h1>
               <p style={{ position: "relative", margin: "22px auto 0", fontSize: 11.5, lineHeight: 1.85, fontWeight: 300, color: "#5b5f66", padding: "26px 60px", maxWidth: 520, boxSizing: "border-box", background: "radial-gradient(closest-side, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 45%, rgba(255,255,255,0) 100%)" }}>
