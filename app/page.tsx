@@ -9,6 +9,7 @@ import ScrambleText from "@/components/ScrambleText";
 import SignupsRoadmap, { BASELINE_SIGNUPS } from "@/components/SignupsRoadmap";
 import BeforeAfter from "@/components/BeforeAfter";
 import ReferAndEarn from "@/components/ReferAndEarn";
+import ShareButton from "@/components/ShareButton";
 import { joinWaitlist, waitlistCount } from "@/lib/supabase";
 
 const STORAGE_KEY = "pl_waitlist_signup";
@@ -47,6 +48,10 @@ export default function Home() {
   }, [refreshCount]);
 
   const totalSignups = BASELINE_SIGNUPS + realSignups;
+
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const referralLink = referralCode && origin ? `${origin}/?ref=${referralCode}` : null;
 
   const fireConfetti = useCallback(() => {
     const rect = btnRef.current?.getBoundingClientRect();
@@ -127,9 +132,6 @@ export default function Home() {
                 <a href="#before-after" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", flex: 1, textAlign: "left", paddingLeft: 80 }}>Before/After</a>
               </div>
               <div style={{ position: "absolute", right: "4%", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
-                <a href="#contact" style={{ fontSize: 11, fontWeight: 500, padding: "8px 15px", border: "1px solid #dcdee3", borderRadius: 7, color: "#1b1b1f" }}>
-                  Contact Us
-                </a>
                 <a href="#early" className="shiny-btn" style={{ fontSize: 11, fontWeight: 500, padding: "8px 15px", borderRadius: 7, backgroundColor: "#1877f2", color: "#ffffff", border: "none", transition: "background-position 0.3s" }}>
                   Get Early Access
                 </a>
@@ -153,7 +155,7 @@ export default function Home() {
 
             <div style={{ position: "relative", marginTop: 34, height: 200 }} />
 
-            <SignupsRoadmap totalSignups={totalSignups} />
+            <SignupsRoadmap totalSignups={totalSignups} referralLink={referralLink} />
           </div>
 
           <BeforeAfter />
@@ -253,15 +255,7 @@ export default function Home() {
                 <img src={s.src} alt={s.label} width={s.size} height={s.size} />
               </a>
             ))}
-            <a href="#" aria-label="Share" style={{ display: "flex", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
-            </a>
+            <ShareButton link={referralLink} variant="circle" iconSize={20} />
           </div>
 
           <div style={{ marginTop: "auto", paddingTop: 32 }}>

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import MagneticLink from "@/components/MagneticLink";
+import ShareButton from "@/components/ShareButton";
 
 const MILESTONES = [
   { icon: "/uploads/bicycle.png", size: 28, pull: -6, label: "500+", count: 500, delay: 0.2 },
@@ -109,9 +110,9 @@ function progressFor(total: number): number {
   return Math.min(100, last.pct + over * (100 - last.pct));
 }
 
-type Props = { totalSignups: number };
+type Props = { totalSignups: number; referralLink: string | null };
 
-export default function SignupsRoadmap({ totalSignups }: Props) {
+export default function SignupsRoadmap({ totalSignups, referralLink }: Props) {
   const progress = progressFor(totalSignups);
   // The track is inset 2% each side, so a track-relative percentage maps back
   // into the wrapper's coordinates this way. At the design's 50% this resolves
@@ -267,7 +268,7 @@ export default function SignupsRoadmap({ totalSignups }: Props) {
             <MagneticLink href="https://github.com">GitHub</MagneticLink>
             <MagneticLink href="https://twitter.com">X/Twitter</MagneticLink>
             <MagneticLink href="https://reddit.com">Reddit</MagneticLink>
-            <MagneticLink href="#">Share</MagneticLink>
+            <ShareButton link={referralLink} variant="pill" iconSize={11} />
           </div>
         </div>
       </div>

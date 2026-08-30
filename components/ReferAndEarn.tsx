@@ -76,7 +76,7 @@ export default function ReferAndEarn({ referralCode }: Props) {
   useEffect(() => setOrigin(window.location.origin), []);
 
   const display =
-    referralCode && origin ? `${origin}/?ref=${referralCode}` : "elia.ai/invite/asup";
+    referralCode && origin ? `${origin}/?ref=${referralCode}` : "elia.ai/invite";
 
   const onCopy = () => {
     navigator.clipboard?.writeText(display).catch(() => {});
