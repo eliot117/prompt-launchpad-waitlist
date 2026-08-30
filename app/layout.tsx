@@ -25,7 +25,11 @@ export const metadata: Metadata = {
     description:
       "Turn a rough idea into the best prompt possible. Join the waitlist.",
   },
-  icons: { icon: "/assets/prompt-launchpad-logo.png" },
+  icons: {
+    icon: { url: "/assets/prompt-launchpad-logo.png", type: "image/png" },
+    shortcut: { url: "/assets/prompt-launchpad-logo.png", type: "image/png" },
+    apple: { url: "/assets/prompt-launchpad-logo.png", type: "image/png" },
+  },
 };
 
 export const viewport: Viewport = { themeColor: "#1877f2" };

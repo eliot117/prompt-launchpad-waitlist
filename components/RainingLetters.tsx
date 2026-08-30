@@ -159,6 +159,12 @@ export default function RainingLetters({
         height: "100%",
         overflow: "hidden",
         backgroundColor,
+        // The 220 spans' top/left writes are layout-triggering; without this
+        // the browser re-checks ancestor/sibling layout on every frame, which
+        // competes with scroll's own compositing work and shows as stutter.
+        // Containment scopes that layout cost to this subtree only — same
+        // pixels, cheaper to produce.
+        contain: "layout style paint",
       }}
     />
   );
