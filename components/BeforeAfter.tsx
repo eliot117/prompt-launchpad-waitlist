@@ -43,11 +43,6 @@ export default function BeforeAfter() {
       el.style.backgroundBlendMode = "overlay, normal, normal, normal, normal";
     };
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      paint(0);
-      return;
-    }
-
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {

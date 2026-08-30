@@ -26,7 +26,6 @@ export default function ScrambleText({
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let raf = 0;
     let timer = 0;

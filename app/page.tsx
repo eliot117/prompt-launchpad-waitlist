@@ -6,14 +6,16 @@ import confetti from "canvas-confetti";
 import CursorTrail from "@/components/CursorTrail";
 import RainingLetters from "@/components/RainingLetters";
 import ScrambleText from "@/components/ScrambleText";
-import SignupsRoadmap from "@/components/SignupsRoadmap";
+import SignupsRoadmap, { BASELINE_SIGNUPS } from "@/components/SignupsRoadmap";
 import BeforeAfter from "@/components/BeforeAfter";
 import ReferAndEarn from "@/components/ReferAndEarn";
-import MagneticLink from "@/components/MagneticLink";
-import { joinWaitlist } from "@/lib/supabase";
+import { joinWaitlist, waitlistCount } from "@/lib/supabase";
 
 const STORAGE_KEY = "pl_waitlist_signup";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Grouped by hand so server and client agree regardless of the active locale. */
+const grouped = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
 export default function Home() {
   const [email, setEmail] = useState("");
@@ -21,6 +23,9 @@ export default function Home() {
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
+  // Starts at the baseline alone so the first paint matches the design exactly;
+  // the real rows land on top of it once the count resolves.
+  const [realSignups, setRealSignups] = useState(0);
   const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -31,6 +36,17 @@ export default function Home() {
       // Corrupt or unavailable storage: fall back to the pre-signup state.
     }
   }, []);
+
+  const refreshCount = useCallback(async () => {
+    const n = await waitlistCount();
+    if (n !== null) setRealSignups(n);
+  }, []);
+
+  useEffect(() => {
+    void refreshCount();
+  }, [refreshCount]);
+
+  const totalSignups = BASELINE_SIGNUPS + realSignups;
 
   const fireConfetti = useCallback(() => {
     const rect = btnRef.current?.getBoundingClientRect();
@@ -64,6 +80,7 @@ export default function Home() {
       fireConfetti();
       setSubmitted(true);
       setEmail("");
+      void refreshCount();
       setTimeout(() => setSubmitted(false), 2600);
     } catch {
       // The design has no error surface; leaving the label unchanged is the
@@ -72,7 +89,7 @@ export default function Home() {
     } finally {
       setPending(false);
     }
-  }, [email, fireConfetti]);
+  }, [email, fireConfetti, refreshCount]);
 
   const showError = touched && email.length > 0 && !EMAIL_RE.test(email);
 
@@ -95,19 +112,24 @@ export default function Home() {
               <div key={i} aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", background: bg }} />
             ))}
 
-            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 4%" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Image src="/assets/prompt-launchpad-logo.png" alt="Prompt Launchpad" width={48} height={48} style={{ objectFit: "contain", display: "block", flexShrink: 0, margin: "-14px 0" }} />
-                <span style={{ fontSize: 16, fontWeight: 500, letterSpacing: -0.2, whiteSpace: "nowrap", lineHeight: 1 }}>
-                  <span style={{ color: "#1b1b1f" }}>Prompt</span> <span style={{ color: "#1877f2" }}>Launchpad</span>
-                </span>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", padding: "22px 4%" }}>
+              <div style={{ position: "absolute", left: "4%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Image src="/assets/prompt-launchpad-logo.png" alt="Prompt Launchpad" width={48} height={48} style={{ objectFit: "contain", display: "block", flexShrink: 0, margin: "-14px 0" }} />
+                  <span style={{ fontSize: 16, fontWeight: 500, letterSpacing: -0.2, whiteSpace: "nowrap", lineHeight: 1 }}>
+                    <span style={{ color: "#1b1b1f" }}>Prompt</span> <span style={{ color: "#1877f2" }}>Launchpad</span>
+                  </span>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 34, fontSize: 12.5, fontWeight: 400, color: "#3c3c43", whiteSpace: "nowrap" }}>
-                <a href="#features">Features</a>
-                <a href="#before-after">Before/After</a>
-                <a href="#early">Join Waiting List</a>
+              <div style={{ display: "flex", alignItems: "center", gap: 0, fontSize: 12, fontWeight: 500, color: "#3c3c43", whiteSpace: "nowrap" }}>
+                <a href="#features" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", flex: 1, textAlign: "right", paddingRight: 80 }}>Features</a>
+                <a href="#early" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", padding: "0 80px" }}>Join Waiting List</a>
+                <a href="#before-after" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", flex: 1, textAlign: "left", paddingLeft: 80 }}>Before/After</a>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+              <div style={{ position: "absolute", right: "4%", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+                <a href="#contact" style={{ fontSize: 11, fontWeight: 500, padding: "8px 15px", border: "1px solid #dcdee3", borderRadius: 7, color: "#1b1b1f" }}>
+                  Contact Us
+                </a>
                 <a href="#early" className="shiny-btn" style={{ fontSize: 11, fontWeight: 500, padding: "8px 15px", borderRadius: 7, backgroundColor: "#1877f2", color: "#ffffff", border: "none", transition: "background-position 0.3s" }}>
                   Get Early Access
                 </a>
@@ -118,8 +140,8 @@ export default function Home() {
               <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.22, fontWeight: 500, letterSpacing: -1, color: "#141416" }}>
                 Revolutionizing Supply
                 <br />
-                Chain <ScrambleText text="Optimization" color="#1877f2" phase={0} period={5200} /> with{" "}
-                <ScrambleText text="AI." color="#141416" phase={2000} period={5200} />
+                Chain <ScrambleText text="Master Prompts" color="#1877f2" phase={0} period={5200} /> with{" "}
+                <ScrambleText text="Elia" color="#141416" phase={2000} period={5200} />
               </h1>
               <p style={{ position: "relative", margin: "22px auto 0", fontSize: 11.5, lineHeight: 1.85, fontWeight: 300, color: "#5b5f66", padding: "26px 60px", maxWidth: 520, boxSizing: "border-box", background: "radial-gradient(closest-side, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 45%, rgba(255,255,255,0) 100%)" }}>
                 A-Sup is an AI-powered solution designed to improve demand forecasting, inventory optimization, and real-time visibility across the supply chain.
@@ -131,13 +153,7 @@ export default function Home() {
 
             <div style={{ position: "relative", marginTop: 34, height: 200 }} />
 
-            <SignupsRoadmap />
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, paddingBottom: 60 }}>
-              <MagneticLink href="https://github.com">GitHub</MagneticLink>
-              <MagneticLink href="https://twitter.com">X/Twitter</MagneticLink>
-              <MagneticLink href="https://reddit.com">Reddit</MagneticLink>
-            </div>
+            <SignupsRoadmap totalSignups={totalSignups} />
           </div>
 
           <BeforeAfter />
@@ -223,7 +239,7 @@ export default function Home() {
           </div>
 
           <div style={{ marginTop: 20, fontSize: 15, fontWeight: 400, color: "#cfe0fb", zoom: 0.9091 }}>
-            Join 2,700+ on the waitlist
+            Join {grouped(totalSignups)}+ on the waitlist
           </div>
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginTop: 26 }}>

@@ -13,8 +13,6 @@ export default function CursorTrail() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (!window.matchMedia("(pointer: fine)").matches) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -114,9 +112,17 @@ export default function CursorTrail() {
       }
     };
 
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        pos.x = e.touches[0].clientX;
+        pos.y = e.touches[0].clientY;
+      }
+    };
+
     resize();
     document.addEventListener("mousemove", onMove);
     document.addEventListener("touchmove", onMove, { passive: true });
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("resize", resize);
 
     return () => {
@@ -124,6 +130,7 @@ export default function CursorTrail() {
       cancelAnimationFrame(raf);
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("resize", resize);
     };
   }, []);

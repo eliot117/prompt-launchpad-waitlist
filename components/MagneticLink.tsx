@@ -25,22 +25,20 @@ export default function MagneticLink({ href, children }: Props) {
     <a
       ref={ref}
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
+      className="mag-link"
       onMouseMove={(e) => {
         const el = ref.current;
         if (!el) return;
         const r = el.getBoundingClientRect();
         const dx = e.clientX - (r.left + r.width / 2);
         const dy = e.clientY - (r.top + r.height / 2);
-        el.style.transition = "transform 0.15s ease-out, background 0.2s, color 0.2s";
+        el.style.transition = "transform 0.15s ease-out";
         el.style.transform = `translate(${dx * 0.3}px, ${dy * 0.3}px)`;
       }}
       onMouseLeave={() => {
         const el = ref.current;
         if (!el) return;
-        el.style.transition =
-          "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s, color 0.2s";
+        el.style.transition = "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
         el.style.transform = "translate(0px, 0px)";
       }}
       style={{
@@ -54,6 +52,7 @@ export default function MagneticLink({ href, children }: Props) {
         fontSize: 11.5,
         fontWeight: 500,
         textDecoration: "none",
+        transition: "background 0.2s, color 0.2s, transform 0.15s ease-out",
       }}
     >
       {children}

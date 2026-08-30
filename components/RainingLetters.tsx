@@ -32,7 +32,6 @@ export default function RainingLetters({
     const host = hostRef.current;
     if (!host) return;
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const pick = () => LETTER_POOL[Math.floor(Math.random() * LETTER_POOL.length)];
 
     const chars = Array.from({ length: CHAR_COUNT }, () => ({
@@ -58,14 +57,6 @@ export default function RainingLetters({
       host.appendChild(c.el);
     }
 
-    // Reduced motion still gets the letter field, just static — dropping it
-    // entirely would leave the hero visibly bare.
-    if (reduced) {
-      return () => {
-        for (const c of chars) c.el.remove();
-      };
-    }
-
     let raf = 0;
     const step = () => {
       for (const c of chars) {
@@ -81,10 +72,9 @@ export default function RainingLetters({
       }
       raf = requestAnimationFrame(step);
     };
-    raf = requestAnimationFrame(step);
 
     const active = new Set<number>();
-    const flicker = window.setInterval(() => {
+    const flickerTick = () => {
       for (const i of active) {
         const s = chars[i].el.style;
         s.fontSize = "0.85rem";
@@ -106,11 +96,54 @@ export default function RainingLetters({
         s.textShadow = `0 0 10px rgba(${activeColor},0.5)`;
         s.transform = "translate(-50%, -50%) scale(1.2)";
       }
-    }, 60);
+    };
 
-    return () => {
+    // The field is decorative and costs a full rAF pass plus a 60ms interval, so
+    // it only runs while it is actually on screen. `onScreen` and `tabVisible`
+    // are tracked separately because either one alone can stop it, and both must
+    // agree before it starts again.
+    let flicker = 0;
+    let running = false;
+    let onScreen = true;
+    let tabVisible = !document.hidden;
+
+    const start = () => {
+      if (running) return;
+      running = true;
+      raf = requestAnimationFrame(step);
+      flicker = window.setInterval(flickerTick, 60);
+    };
+    const stop = () => {
+      if (!running) return;
+      running = false;
       cancelAnimationFrame(raf);
       clearInterval(flicker);
+    };
+    const sync = () => (onScreen && tabVisible ? start() : stop());
+
+    // threshold 0 fires the moment any sliver re-enters, so coming back from a
+    // scroll, a tab switch, or a window refocus resumes immediately.
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        onScreen = entry.isIntersecting;
+        sync();
+      },
+      { threshold: 0 },
+    );
+    io.observe(host);
+
+    const onVisibility = () => {
+      tabVisible = !document.hidden;
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    sync();
+
+    return () => {
+      stop();
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
       for (const c of chars) c.el.remove();
     };
   }, [dimColor, activeColor]);

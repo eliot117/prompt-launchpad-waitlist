@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-const STEPS = [
+type Step = {
+  bg: string;
+  stroke: string;
+  strokeWidth?: number;
+  path: ReactNode;
+  body: ReactNode;
+};
+
+const STEPS: Step[] = [
   {
     bg: "#eaf2fe",
     stroke: "#1877f2",
@@ -41,6 +49,7 @@ const STEPS = [
   {
     bg: "#f7e9f5",
     stroke: "#b13fa0",
+    strokeWidth: 2.2,
     path: <path d="M12 2l3 7h7l-5.5 5 2 8-6.5-5-6.5 5 2-8L2 9h7z" />,
     body: (
       <>
@@ -205,7 +214,7 @@ export default function ReferAndEarn({ referralCode }: Props) {
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke={s.stroke}
-                    strokeWidth="2"
+                    strokeWidth={s.strokeWidth ?? 2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     aria-hidden="true"
