@@ -178,12 +178,12 @@ export default function Home() {
 
             <div style={{ position: "relative", textAlign: "center", padding: "52px 0 0" }}>
               <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.22, fontWeight: 500, letterSpacing: -1, color: "#141416" }}>
-                Revolutionizing How You Write Prompts,
+                Revolutionizing How You Write Prompts
                 <br />
                 with <ScrambleText text="Master Prompts" color="#1877f2" phase={0} period={5200} /> using{" "}
                 <ScrambleText text="Elia" color="#141416" phase={2000} period={5200} />
               </h1>
-              <p style={{ position: "relative", margin: "22px auto 0", fontSize: 11.5, lineHeight: 1.85, fontWeight: 300, color: "#5b5f66", padding: "26px 60px", maxWidth: 520, boxSizing: "border-box", background: "radial-gradient(closest-side, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 45%, rgba(255,255,255,0) 100%)" }}>
+              <p style={{ position: "relative", margin: "22px auto 0", fontSize: 14, lineHeight: 1.85, fontWeight: 500, color: "#5b5f66", padding: "26px 60px", maxWidth: 520, boxSizing: "border-box", background: "radial-gradient(closest-side, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.9) 45%, rgba(255,255,255,0) 100%)" }}>
                 Prompt Launchpad is an AI-powered solution designed to refine your raw input, structure your prompts, and generate production-ready Master Prompts for any AI model.
               </p>
               <a href="#early" className="shiny-btn" style={{ display: "inline-block", marginTop: 26, backgroundColor: "#1877f2", color: "#ffffff", fontSize: 16, fontWeight: 500, padding: "17px 32px", borderRadius: 10, whiteSpace: "nowrap", border: "none", transition: "background-position 0.3s" }}>
@@ -219,7 +219,7 @@ export default function Home() {
           <h2 style={{ margin: 0, fontSize: 33, lineHeight: 1.28, fontWeight: 500, letterSpacing: -0.8, color: "#ffffff" }}>
             Revolutionizing Prompt
             <br />
-            Engineering with AI.
+            Engineering with AI
           </h2>
           <p style={{ margin: "18px 0 0", fontSize: 10, fontWeight: 300, color: "#e2eeff" }}>
             Join to experience the seamless power of AI-perfected prompts.
