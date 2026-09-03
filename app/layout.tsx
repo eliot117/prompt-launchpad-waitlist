@@ -9,7 +9,11 @@ const poppins = Poppins({
   display: "swap",
 });
 
+const SITE_URL = "https://prompt-launchpad-waitlist.vercel.app";
+const LOGO_URL = `${SITE_URL}/assets/prompt-launchpad-logo.png`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Prompt Launchpad",
   description:
     "Prompt Launchpad turns a rough idea into the best prompt possible before it ever reaches an AI. Join the waitlist.",
@@ -18,12 +22,17 @@ export const metadata: Metadata = {
     description:
       "Turn a rough idea into the best prompt possible. Join the waitlist.",
     type: "website",
+    images: [{ url: LOGO_URL, width: 215, height: 215, alt: "Prompt Launchpad" }],
   },
   twitter: {
-    card: "summary_large_image",
+    // "summary" (not summary_large_image) is the right card type for a small
+    // square logo — summary_large_image expects a ~1200x630 landscape image
+    // and will crop/misrender a square one.
+    card: "summary",
     title: "Prompt Launchpad",
     description:
       "Turn a rough idea into the best prompt possible. Join the waitlist.",
+    images: [LOGO_URL],
   },
   icons: {
     icon: { url: "/assets/prompt-launchpad-logo.png", type: "image/png" },

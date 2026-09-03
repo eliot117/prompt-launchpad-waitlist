@@ -284,11 +284,11 @@ export default function Home() {
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginTop: 26 }}>
             {[
-              { label: "X", src: "https://cdn.simpleicons.org/x/ffffff", size: 20 },
-              { label: "GitHub", src: "https://cdn.simpleicons.org/github/ffffff", size: 22 },
-              { label: "Reddit", src: "https://cdn.simpleicons.org/reddit/ff4500", size: 24 },
+              { label: "X", href: "https://x.com/Elia_ai_prompts", src: "https://cdn.simpleicons.org/x/ffffff", size: 20 },
+              { label: "GitHub", href: "#", src: "https://cdn.simpleicons.org/github/ffffff", size: 22 },
+              { label: "Reddit", href: "https://www.reddit.com/user/Elia_ai_prompts/", src: "https://cdn.simpleicons.org/reddit/ff4500", size: 24 },
             ].map((s) => (
-              <a key={s.label} href="#" aria-label={s.label} style={{ display: "flex", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }}>
+              <a key={s.label} href={s.href} aria-label={s.label} style={{ display: "flex", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={s.src} alt={s.label} width={s.size} height={s.size} />
               </a>

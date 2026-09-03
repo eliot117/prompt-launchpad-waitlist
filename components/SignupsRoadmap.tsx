@@ -265,9 +265,9 @@ export default function SignupsRoadmap({ totalSignups, referralLink }: Props) {
               paddingTop: 14,
             }}
           >
-            <MagneticLink href="https://github.com">GitHub</MagneticLink>
-            <MagneticLink href="https://twitter.com">X/Twitter</MagneticLink>
-            <MagneticLink href="https://reddit.com">Reddit</MagneticLink>
+            <MagneticLink href="javascript:void(0);">GitHub</MagneticLink>
+            <MagneticLink href="https://x.com/Elia_ai_prompts">X/Twitter</MagneticLink>
+            <MagneticLink href="https://www.reddit.com/user/Elia_ai_prompts/">Reddit</MagneticLink>
             <ShareButton link={referralLink} variant="pill" iconSize={11} />
           </div>
         </div>
