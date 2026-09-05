@@ -160,16 +160,18 @@ export default function SignupsRoadmap({ totalSignups, referralLink }: Props) {
             flexDirection: "column",
           }}
         >
-          <div
+          <h2
             style={{
+              // A heading for crawlers, but an h2 brings default margins a div
+              // doesn't — zeroing them keeps the rendered box identical.
+              margin: "0 0 24px",
               fontSize: 20,
               fontWeight: 700,
               color: "#141416",
-              marginBottom: 24,
             }}
           >
             Sign-ups Roadmap
-          </div>
+          </h2>
 
           <div style={{ position: "relative" }}>
             <div
@@ -229,7 +231,7 @@ export default function SignupsRoadmap({ totalSignups, referralLink }: Props) {
                   >
                     <Image
                       src={m.icon}
-                      alt=""
+                      alt={`${m.label} signups milestone`}
                       width={m.size}
                       height={m.size}
                       style={{ objectFit: "contain", marginTop: m.pull }}

@@ -142,7 +142,11 @@ export default function ReferAndEarn({ referralLink }: Props) {
             >
               Earn 1+ months free
             </div>
-            <h3
+            {/* h2, not h3 — this sits alongside the other section headings
+                under the page's single h1, and an h3 here skipped a level.
+                Every visual property is set explicitly, so the tag swap
+                changes nothing on screen. */}
+            <h2
               style={{
                 margin: "18px 0 0",
                 fontSize: 28,
@@ -152,7 +156,7 @@ export default function ReferAndEarn({ referralLink }: Props) {
               }}
             >
               Refer &amp; Earn
-            </h3>
+            </h2>
             <p style={{ margin: "8px 0 0", fontSize: 14, fontWeight: 300, color: "#003a42" }}>
               for each friend that you invite
             </p>
