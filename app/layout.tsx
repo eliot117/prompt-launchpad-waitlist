@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: "/" },
+  verification: {
+    google: "Hx1dHPKZmmPHMV8_UXEY-CIDnsz1dLnJ6VoRUkt9CPw",
+  },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
