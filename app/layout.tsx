@@ -11,6 +11,7 @@ const poppins = Poppins({
 
 const SITE_URL = "https://prompt-launchpad-waitlist.vercel.app";
 const LOGO_URL = `${SITE_URL}/assets/prompt-launchpad-logo.png`;
+const GOOGLE_TAG_ID = "G-E84WT06HES";
 
 const TITLE = "Prompt Launchpad — Write Better AI Prompts with Elia";
 const DESCRIPTION =
@@ -90,6 +91,19 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={poppins.variable}>
+      <head>
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}`} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GOOGLE_TAG_ID}');
+            `,
+          }}
+        />
+      </head>
       <body className="font-sans">
         <script
           type="application/ld+json"
