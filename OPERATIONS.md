@@ -20,7 +20,7 @@ Configuring email later does not automatically send the backlog. Before replayin
 ## Checks and release
 Use Node 24 or newer. Run `npm ci`, `npm test`, `npm run typecheck`, `npm run build`, `npm audit --omit=dev`, and `npx deno@2.9.6 check supabase/functions/waitlist/index.ts`. Database tests use PGlite and a captured live-schema fixture; they do not prove multi-session concurrency or deployed behavior.
 
-Apply `20261010050410_waitlist_hardening.sql` transactionally to the inspected existing schema, deploy the Edge Function files, then deploy the corresponding frontend. The migration aborts on incompatible data instead of merging or deleting rows. Check live grants/RLS, safe API failures, deployment commit, and separately approved real signup outcomes.
+Apply `20261010212538_waitlist_hardening.sql and then 20261010212844_waitlist_verified_count_privacy.sql` transactionally to the inspected existing schema, deploy the Edge Function files, then deploy the corresponding frontend. The migration aborts on incompatible data instead of merging or deleting rows. Check live grants/RLS, safe API failures, deployment commit, and separately approved real signup outcomes.
 
 The pre-hardening frontend depends on now-revoked RPCs. Do not roll back to it or restore public grants. If release verification fails, keep restrictive database permissions and ship a forward correction or a maintenance form. Preserve records, tokens and referral history.
 

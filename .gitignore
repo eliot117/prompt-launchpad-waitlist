@@ -9,3 +9,5 @@ next-env.d.ts
 .vercel
 .temp/
 supabase/.temp/
+.playwright-cli/
+output/playwright/

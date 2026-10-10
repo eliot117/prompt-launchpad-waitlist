@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
 
-const migration = await readFile(new URL('../supabase/migrations/20261010050410_waitlist_hardening.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../supabase/migrations/20261010212538_waitlist_hardening.sql', import.meta.url), 'utf8');
+const countPrivacyMigration = await readFile(new URL('../supabase/migrations/20261010212844_waitlist_verified_count_privacy.sql', import.meta.url), 'utf8');
 const reference = await readFile(new URL('./live-schema-reference.sql', import.meta.url), 'utf8');
 const fixture = `
 create role anon; create role authenticated; create role service_role bypassrls;
@@ -32,7 +33,7 @@ async function database({ migrate = true, seed = '' } = {}) {
   await db.exec(fixture);
   await db.exec(reference);
   await db.exec(seed);
-  if (migrate) await db.exec(`begin; ${migration} commit;`);
+  if (migrate) await db.exec(`begin; ${migration} ${countPrivacyMigration} commit;`);
   return db;
 }
 async function rpc(db, name, args = []) {
@@ -40,6 +41,33 @@ async function rpc(db, name, args = []) {
 }
 const hash = (digit) => digit.repeat(64);
 const signup = (db, email, referral = null, ip = hash('a')) => rpc(db, 'request_waitlist_signup', [email, referral, ip]);
+
+test('public aggregate hides new and duplicate pending signups; verification and opt-out update count', async () => {
+  const db = await database();
+  const publicCount = async () => {
+    await db.exec('set role anon;');
+    try { return await rpc(db, 'waitlist_count'); }
+    finally { await db.exec('reset role;'); }
+  };
+  try {
+    assert.equal(await publicCount(), 0);
+    const first = await signup(db, 'count-privacy@example.invalid');
+    assert.equal(await publicCount(), 0, 'new pending signup must not affect aggregate');
+    await signup(db, ' COUNT-PRIVACY@example.invalid ');
+    assert.equal(await publicCount(), 0, 'duplicate pending signup must not affect aggregate');
+    await signup(db, 'other-pending@example.invalid');
+    assert.equal(await publicCount(), 0, 'all pending entries remain excluded');
+    await rpc(db, 'verify_waitlist_token', [first.job.token]);
+    assert.equal(await publicCount(), 1, 'verification adds one subscribed entry');
+    await rpc(db, 'verify_waitlist_token', [first.job.token]);
+    assert.equal(await publicCount(), 1, 'repeated verification cannot inflate count');
+    await signup(db, first.job.to, null, hash('b'));
+    assert.equal(await publicCount(), 1, 'duplicate verified signup cannot affect aggregate');
+    await rpc(db, 'unsubscribe_waitlist_token', [first.job.unsubscribe_token]);
+    assert.equal(await publicCount(), 0, 'opt-out removes verified entry from public count');
+    assert.equal((await db.query('select count(*)::int as n from public.waitlist')).rows[0].n, 2, 'opt-out preserves stored rows');
+  } finally { await db.close(); }
+});
 
 test('normalisation, duplicate suppression, input bounds and atomic request allowance', async () => {
   const db = await database();
