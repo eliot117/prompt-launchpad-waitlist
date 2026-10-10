@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import confetti from "canvas-confetti";
 import CursorTrail from "@/components/CursorTrail";
 import RainingLetters from "@/components/RainingLetters";
 import ScrambleText from "@/components/ScrambleText";
@@ -10,13 +9,13 @@ import SignupsRoadmap, { BASELINE_SIGNUPS } from "@/components/SignupsRoadmap";
 import BeforeAfter from "@/components/BeforeAfter";
 import ReferAndEarn from "@/components/ReferAndEarn";
 import ShareButton from "@/components/ShareButton";
-import { joinWaitlist, waitlistCount } from "@/lib/supabase";
-import { buildReferralLink } from "@/lib/referral";
+import { emailValidationError, joinWaitlist, messageForError, normaliseEmail, SIGNUP_ACCEPTED_MESSAGE, SIGNUP_DELAYED_MESSAGE, waitlistCount } from "@/lib/supabase";
+import { PRODUCTION_ORIGIN } from "@/lib/referral";
 
 const STORAGE_KEY = "pl_waitlist_signup";
 const REF_KEY = "pl_referral_ref";
 const REF_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REF_CODE_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 
 /**
  * Referral attribution used to live only in the URL, so it survived exactly
@@ -26,6 +25,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * months ago doesn't attribute a signup that has nothing to do with it.
  */
 function rememberRef(code: string) {
+  if (!REF_CODE_RE.test(code)) return;
   try {
     localStorage.setItem(REF_KEY, JSON.stringify({ code, ts: Date.now() }));
   } catch {
@@ -38,7 +38,7 @@ function recallRef(): string | null {
     const saved = localStorage.getItem(REF_KEY);
     if (!saved) return null;
     const { code, ts } = JSON.parse(saved) as { code?: string; ts?: number };
-    if (!code || typeof ts !== "number" || Date.now() - ts > REF_TTL_MS) return null;
+    if (typeof code !== "string" || !REF_CODE_RE.test(code) || typeof ts !== "number" || ts > Date.now() || Date.now() - ts > REF_TTL_MS) return null;
     return code;
   } catch {
     return null;
@@ -50,21 +50,25 @@ const grouped = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","
 
 export default function Home() {
   const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState("");
+  const [emailDelayed, setEmailDelayed] = useState(false);
   const [touched, setTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [requestError, setRequestError] = useState(false);
+  const submittingRef = useRef(false);
   // Starts at the baseline alone so the first paint matches the design exactly;
   // the real rows land on top of it once the count resolves.
   const [realSignups, setRealSignups] = useState(0);
-  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setReferralCode(JSON.parse(saved).referral_code ?? null);
+      // Older versions stored anonymous signup results as if they proved
+      // ownership. Personal referral links are now provided after verification.
+      localStorage.removeItem(STORAGE_KEY);
     } catch {
-      // Corrupt or unavailable storage: fall back to the pre-signup state.
+      // Storage may be unavailable in private browsing.
     }
   }, []);
 
@@ -85,56 +89,56 @@ export default function Home() {
 
   const totalSignups = BASELINE_SIGNUPS + realSignups;
 
-  const [origin, setOrigin] = useState("");
-  useEffect(() => setOrigin(window.location.origin), []);
-  // Single source of truth (lib/referral): the roadmap share button, the footer
-  // share button and the Refer & Earn row all copy this exact string.
-  const referralLink = buildReferralLink(origin, referralCode);
-
-  const fireConfetti = useCallback(() => {
-    const rect = btnRef.current?.getBoundingClientRect();
-    const origin = rect
-      ? {
-          x: (rect.left + rect.width / 2) / window.innerWidth,
-          y: (rect.top + rect.height / 2) / window.innerHeight,
-        }
-      : { x: 0.5, y: 0.6 };
-    const colors = ["#ffffff", "#cfe0fb", "#8fc0ff", "#1877f2", "#eaf1fd"];
-    confetti({ particleCount: 90, spread: 100, startVelocity: 45, gravity: 0.9, ticks: 220, origin, colors, zIndex: 9999 });
-    confetti({ particleCount: 50, spread: 130, startVelocity: 55, gravity: 0.9, ticks: 220, origin, colors, zIndex: 9999, scalar: 0.8, angle: 90 });
-  }, []);
+  // An anonymous response or saved shareable code cannot prove ownership.
+  // Verified personal links are delivered through the verification flow.
+  const referralLink = null;
 
   const onSubmit = useCallback(async () => {
-    if (!EMAIL_RE.test(email)) {
-      setTouched(true);
+    // React state alone is not synchronous: Enter/click in the same turn must
+    // be blocked before the first asynchronous request starts.
+    if (submittingRef.current) return;
+    const canonicalEmail = normaliseEmail(email);
+    const validationError = emailValidationError(canonicalEmail);
+    setTouched(true);
+    setSubmitted(false);
+    if (validationError) {
+      setStatusMessage(validationError);
+      setRequestError(true);
       return;
     }
+    submittingRef.current = true;
     setPending(true);
+    setRequestError(false);
+    setStatusMessage("Submitting your request…");
     try {
       const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref") ?? recallRef();
-      const result = await joinWaitlist(email, ref, window.location.origin);
-      setReferralCode(result.referral_code);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(result));
-      } catch {
-        // Storage is a convenience here; the signup already succeeded.
-      }
-      fireConfetti();
+      const urlRef = params.get("ref");
+      const ref = urlRef && REF_CODE_RE.test(urlRef) ? urlRef : recallRef();
+      const result = await joinWaitlist(canonicalEmail, ref, PRODUCTION_ORIGIN, website);
       setSubmitted(true);
+      setEmailDelayed(result.email_delivery === "unavailable");
+      setStatusMessage(result.email_delivery === "unavailable" ? SIGNUP_DELAYED_MESSAGE : SIGNUP_ACCEPTED_MESSAGE);
       setEmail("");
+      setTouched(false);
       void refreshCount();
-      setTimeout(() => setSubmitted(false), 2600);
-    } catch {
-      // The design has no error surface; leaving the label unchanged is the
-      // only honest signal available without inventing UI.
-      setTouched(true);
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "message" in error && String(error.message).includes("invalid_referral")) {
+        try {
+          localStorage.removeItem(REF_KEY);
+        } catch {
+          // The visitor can still retry using a clean homepage URL.
+        }
+      }
+      setRequestError(true);
+      setStatusMessage(messageForError(error));
     } finally {
+      submittingRef.current = false;
       setPending(false);
     }
-  }, [email, fireConfetti, refreshCount]);
+  }, [email, website, refreshCount]);
 
-  const showError = touched && email.length > 0 && !EMAIL_RE.test(email);
+  const validationMessage = touched ? emailValidationError(email) : null;
+  const showError = !!validationMessage || requestError;
 
   return (
     <>
@@ -226,19 +230,34 @@ export default function Home() {
           </p>
 
           <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center", gap: 10, margin: "26px auto 0", width: "fit-content" }}>
+            <div aria-hidden="true" style={{ position: "absolute", left: -10000, width: 1, height: 1, overflow: "hidden" }}>
+              <label htmlFor="waitlist-website">Website</label>
+              <input id="waitlist-website" name="website" type="text" tabIndex={-1} autoComplete="off" maxLength={256} value={website} onChange={(event) => setWebsite(event.target.value)} />
+            </div>
             <input
               type="email"
+              name="email"
+              autoComplete="email"
+              maxLength={320}
+              disabled={pending}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
                 setTouched(true);
                 setSubmitted(false);
+                setRequestError(false);
+                setStatusMessage("");
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") void onSubmit();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void onSubmit();
+                }
               }}
               placeholder="Enter your email"
               aria-label="Email address"
+              aria-invalid={showError}
+              aria-describedby="waitlist-status"
               style={{
                 width: 220,
                 height: 20,
@@ -256,7 +275,6 @@ export default function Home() {
             />
             <button
               type="button"
-              ref={btnRef}
               onClick={() => void onSubmit()}
               disabled={pending}
               className="shiny-btn"
@@ -274,9 +292,15 @@ export default function Home() {
                 fontFamily: "inherit",
               }}
             >
-              {submitted ? "You're in! ✓" : "Get Early Access"}
+              {pending ? "Submitting…" : submitted ? (emailDelayed ? "Email delayed" : "Check your inbox") : "Get Early Access"}
             </button>
           </div>
+          <p id="waitlist-status" role={showError ? "alert" : "status"} aria-live="polite" style={{ margin: "10px auto 0", maxWidth: 460, minHeight: 18, color: "#ffffff", fontSize: 12, lineHeight: 1.5 }}>
+            {statusMessage || validationMessage || ""}
+          </p>
+          <p style={{ margin: "8px auto 0", maxWidth: 460, color: "#e2eeff", fontSize: 11, lineHeight: 1.5 }}>
+            By joining, you request email verification and Prompt Launchpad waitlist and launch updates. You can unsubscribe using the link in our emails. <a href="/privacy" style={{ color: "inherit", textDecoration: "underline" }}>Privacy and email preferences</a>
+          </p>
 
           <div style={{ marginTop: 20, fontSize: 15, fontWeight: 400, color: "#cfe0fb", zoom: 0.9091 }}>
             Join {grouped(totalSignups)}+ on the waitlist

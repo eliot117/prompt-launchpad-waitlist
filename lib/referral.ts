@@ -18,18 +18,17 @@
  * safe thing to show or copy before a personal code exists.
  */
 export const REFERRAL_PLACEHOLDER = "prompt-launchpad-waitlist.vercel.app/invite";
+export const PRODUCTION_ORIGIN = "https://prompt-launchpad-waitlist.vercel.app";
 
 /**
- * The real, personalised link. Built from the live origin so it works on
- * whatever domain actually serves the site -- localhost, the Vercel URL, or a
- * custom domain later -- with no code change.
- *
- * Returns null until both halves are known: `origin` is empty during SSR, and
- * `code` is null until the visitor has signed up on this browser.
+ * Personal links always use the production domain, including when rendered
+ * from previews. Only pass a code obtained after proving inbox ownership.
+ * The origin parameter remains for compatibility with existing callers.
  */
 export function buildReferralLink(origin: string, code: string | null): string | null {
-  if (!origin || !code) return null;
-  return `${origin}/?ref=${code}`;
+  void origin;
+  if (!code || !/^[a-zA-Z0-9_-]{1,128}$/.test(code)) return null;
+  return `${PRODUCTION_ORIGIN}/?ref=${encodeURIComponent(code)}`;
 }
 
 /** What any of the three copy affordances should put on the clipboard. */
