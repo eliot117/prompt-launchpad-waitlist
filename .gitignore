@@ -1,8 +1,11 @@
 node_modules
 .next
 out
-.env*.local
+.env*
+!.env.example
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+.temp/
+supabase/.temp/
