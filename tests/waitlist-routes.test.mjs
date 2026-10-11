@@ -30,7 +30,7 @@ test("GET verification and unsubscribe are scanner-safe with private headers", a
     const response = route.GET(new Request(`${site}${path}?token=${token}`));
     assert.equal(response.status, 200);
     assert.match(response.headers.get("cache-control"), /no-store/);
-    assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+    assert.equal(response.headers.get("referrer-policy"), "strict-origin");
     assert.match(response.headers.get("content-security-policy"), /default-src 'none'/);
     assert.match(await response.text(), new RegExp(`<form method="post" action="${path}"`));
     assert.equal(route.GET(new Request(`${site}${path}?token=%22%3E%3Cscript%3E`)).status, 400);
@@ -84,6 +84,7 @@ test("invalid, duplicated, oversized and cross-origin token forms never call gat
       formRequest("/verify", `token=${token}&token=${token}`),
       formRequest("/verify", `token=${token}&padding=${"x".repeat(4096)}`),
       formRequest("/verify", `token=${token}`, { origin: "https://attacker.example" }),
+      formRequest("/verify", `token=${token}`, { origin: "null" }),
     ];
     for (const request of requests) assert.equal((await route.POST(request)).status, 400);
   }

@@ -18,6 +18,10 @@ Provider acceptance is recorded as `provider_accepted_at`; it does not prove inb
 Configuring email later does not automatically send the backlog. Before replaying existing jobs, review the intended recipients and consent, obtain any required sending approval, retain provider idempotency keys, and verify the provider result. Do not mark failed jobs as sent or manually award referral counts to simulate email verification.
 
 ## Checks and release
+Confirmation pages use `Referrer-Policy: strict-origin`: browser form POSTs retain their real Origin while referrers omit paths and token-bearing queries. Do not switch back to `no-referrer`; Chrome then sends `Origin: null` for basic form POSTs and the same-origin validation rejects legitimate confirmations. Keep rejecting null/hostile origins.
+
+For the real-browser regression, run `node tests/waitlist-browser-fixture.mjs`, open `http://127.0.0.1:3107/verify?token=fixture` and `/unsubscribe?token=fixture` using the Playwright CLI, and click `Confirm fixture` on each. Both must show `Confirmed`. GET `/evidence` must show accepted POSTs with Origin `http://127.0.0.1:3107` and referrer `http://127.0.0.1:3107/`, never a token-bearing path/query. The fixture uses production helpers and makes no Supabase/email calls.
+
 Use Node 24 or newer. Run `npm ci`, `npm test`, `npm run typecheck`, `npm run build`, `npm audit --omit=dev`, and `npx deno@2.9.6 check supabase/functions/waitlist/index.ts`. Database tests use PGlite and a captured live-schema fixture; they do not prove multi-session concurrency or deployed behavior.
 
 Apply `20261010212538_waitlist_hardening.sql and then 20261010212844_waitlist_verified_count_privacy.sql` transactionally to the inspected existing schema, deploy the Edge Function files, then deploy the corresponding frontend. The migration aborts on incompatible data instead of merging or deleting rows. Check live grants/RLS, safe API failures, deployment commit, and separately approved real signup outcomes.
