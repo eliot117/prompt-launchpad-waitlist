@@ -10,7 +10,10 @@ export function privatePage(title: string, content: string, status = 200): Respo
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store, max-age=0",
-      "Referrer-Policy": "no-referrer",
+      // no-referrer makes basic browser form POSTs send Origin: null, which
+      // the same-origin guard correctly rejects. strict-origin still strips
+      // the token-bearing path/query while preserving a usable POST Origin.
+      "Referrer-Policy": "strict-origin",
       "Content-Security-Policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
