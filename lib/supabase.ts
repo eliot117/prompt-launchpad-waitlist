@@ -28,11 +28,9 @@ export type Signup = {
 
 export type JoinResult = {
   status: "accepted";
-  email_delivery: "pending" | "unavailable";
 };
 
-export const SIGNUP_ACCEPTED_MESSAGE = "Request received. Check your inbox; if no email arrives, try again after five minutes.";
-export const SIGNUP_DELAYED_MESSAGE = "Your request was received. Verification email is currently unavailable. Please try again later; your place is confirmed only after verification.";
+export const SIGNUP_ACCEPTED_MESSAGE = "Thanks! Your signup request has been received.";
 
 export function normaliseEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -52,18 +50,15 @@ export function emailValidationError(email: string): string | null {
   return null;
 }
 
-export type VerifyStatus = "verified" | "already_verified" | "expired" | "invalid";
-
-export type VerifyResult = {
-  status: VerifyStatus;
-  referral_code: string | null;
-  referral_count: number | null;
-  unsubscribe_token?: string | null;
-};
-
 export type UnsubscribeResult = { status: "unsubscribed" | "already_unsubscribed" | "expired" | "invalid" };
 
-const SAFE_GATEWAY_ERRORS = new Set(["invalid_email", "invalid_referral", "rate_limited", "email_delivery_unavailable"]);
+const SAFE_GATEWAY_ERRORS = new Set(["invalid_email", "invalid_referral", "rate_limited"]);
+
+function safeRetryAfter(value: unknown): number | null {
+  if (typeof value !== "number" && (typeof value !== "string" || !/^\d+(?:\.\d+)?$/.test(value))) return null;
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(86400, Math.ceil(seconds)) : null;
+}
 
 async function gateway(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   if (!url || !anonKey) throw new Error("fetch failed");
@@ -80,7 +75,10 @@ async function gateway(body: Record<string, unknown>): Promise<Record<string, un
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       const error = typeof data?.error === "string" ? data.error : "";
-      if (response.status === 429) throw new Error("rate_limited");
+      if (response.status === 429) {
+        const retryAfter = safeRetryAfter(data?.retry_after) ?? safeRetryAfter(response.headers.get("Retry-After"));
+        throw Object.assign(new Error("rate_limited"), { retryAfter });
+      }
       throw new Error(SAFE_GATEWAY_ERRORS.has(error) ? error : "gateway_unavailable");
     }
     if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("gateway_unavailable");
@@ -104,13 +102,13 @@ export function messageForError(err: unknown): string {
     return "That doesn't look like an email address.";
   }
   if (raw.includes("rate_limited")) {
-    return "Too many signups from this connection. Try again in an hour.";
+    const retryAfter = typeof err === "object" && err !== null && "retryAfter" in err ? safeRetryAfter(err.retryAfter) : null;
+    if (retryAfter === null) return "Too many signup attempts. Please wait a little before trying again.";
+    const minutes = Math.ceil(retryAfter / 60);
+    return `Too many signup attempts. Try again in ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`;
   }
   if (raw.includes("invalid_referral")) {
     return "That invite link is no longer valid. Open the homepage without the invite link and try again.";
-  }
-  if (raw.includes("email_unavailable") || raw.includes("email_delivery_unavailable")) {
-    return "We couldn't send your email right now. Try again shortly.";
   }
   if (
     raw.includes("failed to fetch") ||
@@ -125,7 +123,6 @@ export function messageForError(err: unknown): string {
 }
 
 /**
- * The server independently enforces the canonical verification-link origin.
  * Signup responses are acknowledgements, not proof of inbox ownership.
  */
 export async function joinWaitlist(
@@ -138,20 +135,8 @@ export async function joinWaitlist(
   const canonicalEmail = normaliseEmail(email);
   if (emailValidationError(canonicalEmail)) throw new Error("invalid_email");
   const data = await gateway({ action: "join", email: canonicalEmail, referral: referredBy, website });
-  if (data.status !== "accepted" || !["pending", "unavailable"].includes(String(data.email_delivery))) throw new Error("gateway_unavailable");
-  return { status: "accepted", email_delivery: data.email_delivery as JoinResult["email_delivery"] };
-}
-
-/** Called from the /verify route handler, not the browser. */
-export async function verifyEmail(
-  token: string,
-  origin: string | null = null,
-): Promise<VerifyResult> {
-  void origin;
-  if (!/^[a-f0-9]{64}$/.test(token)) return { status: "invalid", referral_code: null, referral_count: null };
-  const data = await gateway({ action: "verify", token });
-  if (!["verified", "already_verified", "expired", "invalid"].includes(String(data.status))) throw new Error("gateway_unavailable");
-  return data as VerifyResult;
+  if (data.status !== "accepted") throw new Error("gateway_unavailable");
+  return { status: "accepted" };
 }
 
 export async function unsubscribeEmail(token: string): Promise<UnsubscribeResult> {

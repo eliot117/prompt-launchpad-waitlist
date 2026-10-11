@@ -9,7 +9,7 @@ import SignupsRoadmap, { BASELINE_SIGNUPS } from "@/components/SignupsRoadmap";
 import BeforeAfter from "@/components/BeforeAfter";
 import ReferAndEarn from "@/components/ReferAndEarn";
 import ShareButton from "@/components/ShareButton";
-import { emailValidationError, joinWaitlist, messageForError, normaliseEmail, SIGNUP_ACCEPTED_MESSAGE, SIGNUP_DELAYED_MESSAGE, waitlistCount } from "@/lib/supabase";
+import { emailValidationError, joinWaitlist, messageForError, normaliseEmail, SIGNUP_ACCEPTED_MESSAGE, waitlistCount } from "@/lib/supabase";
 import { PRODUCTION_ORIGIN } from "@/lib/referral";
 
 const STORAGE_KEY = "pl_waitlist_signup";
@@ -51,7 +51,6 @@ const grouped = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","
 export default function Home() {
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
-  const [emailDelayed, setEmailDelayed] = useState(false);
   const [touched, setTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
@@ -65,7 +64,7 @@ export default function Home() {
   useEffect(() => {
     try {
       // Older versions stored anonymous signup results as if they proved
-      // ownership. Personal referral links are now provided after verification.
+      // ownership. Direct signup does not disclose personal referral information.
       localStorage.removeItem(STORAGE_KEY);
     } catch {
       // Storage may be unavailable in private browsing.
@@ -90,7 +89,7 @@ export default function Home() {
   const totalSignups = BASELINE_SIGNUPS + realSignups;
 
   // An anonymous response or saved shareable code cannot prove ownership.
-  // Verified personal links are delivered through the verification flow.
+  // Referral rewards remain paused while signups do not verify inbox ownership.
   const referralLink = null;
 
   const onSubmit = useCallback(async () => {
@@ -114,10 +113,9 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       const urlRef = params.get("ref");
       const ref = urlRef && REF_CODE_RE.test(urlRef) ? urlRef : recallRef();
-      const result = await joinWaitlist(canonicalEmail, ref, PRODUCTION_ORIGIN, website);
+      await joinWaitlist(canonicalEmail, ref, PRODUCTION_ORIGIN, website);
       setSubmitted(true);
-      setEmailDelayed(result.email_delivery === "unavailable");
-      setStatusMessage(result.email_delivery === "unavailable" ? SIGNUP_DELAYED_MESSAGE : SIGNUP_ACCEPTED_MESSAGE);
+      setStatusMessage(SIGNUP_ACCEPTED_MESSAGE);
       setEmail("");
       setTouched(false);
       void refreshCount();
@@ -292,14 +290,14 @@ export default function Home() {
                 fontFamily: "inherit",
               }}
             >
-              {pending ? "Submitting…" : submitted ? (emailDelayed ? "Email delayed" : "Check your inbox") : "Get Early Access"}
+              {pending ? "Submitting…" : submitted ? "Request received" : "Get Early Access"}
             </button>
           </div>
           <p id="waitlist-status" role={showError ? "alert" : "status"} aria-live="polite" style={{ margin: "10px auto 0", maxWidth: 460, minHeight: 18, color: "#ffffff", fontSize: 12, lineHeight: 1.5 }}>
             {statusMessage || validationMessage || ""}
           </p>
           <p style={{ margin: "8px auto 0", maxWidth: 460, color: "#e2eeff", fontSize: 11, lineHeight: 1.5 }}>
-            By joining, you request email verification and Prompt Launchpad waitlist and launch updates. You can unsubscribe using the link in our emails. <a href="/privacy" style={{ color: "inherit", textDecoration: "underline" }}>Privacy and email preferences</a>
+            By joining, you agree to receive Prompt Launchpad waitlist and launch updates. To opt out, email <a href="mailto:eliot.rbn18@gmail.com" style={{ color: "inherit", textDecoration: "underline" }}>eliot.rbn18@gmail.com</a> from the address you used. <a href="/privacy" style={{ color: "inherit", textDecoration: "underline" }}>Privacy and email preferences</a>
           </p>
 
           <div style={{ marginTop: 20, fontSize: 15, fontWeight: 400, color: "#cfe0fb", zoom: 0.9091 }}>

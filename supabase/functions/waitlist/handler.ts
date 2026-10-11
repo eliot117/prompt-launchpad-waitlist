@@ -1,13 +1,7 @@
-export type DeliveryJob = {
-  id: string; to: string; kind: "verification" | "confirmation";
-  token: string | null; referral_code: string; unsubscribe_token: string;
-};
-export type DeliveryConfig = { api_key: string | null; from_email: string | null; site_url: string | null };
 export type Dependencies = {
   rpc: (name: string, args?: Record<string, unknown>) => Promise<any>;
   validateKey: (key: string) => Promise<boolean>;
   hashIp: (ip: string) => Promise<string>;
-  sendEmail: (config: DeliveryConfig, job: DeliveryJob) => Promise<string>;
 };
 
 const TOKEN = /^(?:[a-f0-9]{48}|[a-f0-9]{64})$/;
@@ -58,6 +52,7 @@ export function createHandler(deps: Dependencies) {
       "Content-Type": "application/json", "Cache-Control": "no-store", "Vary": "Origin",
       "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Expose-Headers": "Retry-After",
     };
     const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers });
     if (origin && origin !== CANONICAL_ORIGIN) return reply(403, { error: "origin_not_allowed" });
@@ -71,55 +66,35 @@ export function createHandler(deps: Dependencies) {
       const input = await readBody(request);
       const action = input.action;
       if (!["join", "verify", "unsubscribe"].includes(String(action))) return reply(400, { error: "invalid_request" });
+      // Direct signup does not claim inbox ownership or award verified credits.
+      if (action === "verify") return reply(410, { error: "verification_not_required" });
       if (action === "join" && !validEmail(input.email)) return reply(400, { error: "invalid_email" });
       if (action !== "join" && (typeof input.token !== "string" || !TOKEN.test(input.token))) return reply(400, { error: "invalid_token" });
       if (action === "join" && input.referral != null && (typeof input.referral !== "string" || input.referral.length > 64)) return reply(400, { error: "invalid_referral" });
-      if (action === "join" && input.website) return reply(202, { status: "accepted", email_delivery: "pending" });
+      if (action === "join" && input.website) return reply(202, { status: "accepted" });
 
       let result;
       if (action === "join") {
         const ip = trustedClientIp(request);
         if (!ip) return reply(503, { error: "client_ip_unavailable" });
-        result = await deps.rpc("request_waitlist_signup", {
+        result = await deps.rpc("request_waitlist_capture", {
           p_email: (input.email as string).trim().toLowerCase(),
           p_referred_by: input.referral || null, p_ip_hash: await deps.hashIp(ip),
         });
-      } else if (action === "verify") {
-        result = await deps.rpc("verify_waitlist_token", { p_token: input.token });
       } else {
         result = await deps.rpc("unsubscribe_waitlist_token", { p_token: input.token });
       }
-      if (result.status === "rate_limited") { headers["Retry-After"] = "3600"; return reply(429, { error: "rate_limited" }); }
-      // Opt-out must succeed independently of provider configuration.
+      if (result.status === "rate_limited") {
+        const seconds = typeof result.retry_after === "number" && Number.isFinite(result.retry_after)
+          ? Math.min(3600, Math.max(1, Math.ceil(result.retry_after))) : 3600;
+        headers["Retry-After"] = String(seconds);
+        return reply(429, { error: "rate_limited", retry_after: seconds });
+      }
       if (action === "unsubscribe") return reply(200, { status: result.status });
-
-      // Keep the row even if the provider is down. Durable jobs make retry
-      // possible; never call a queued or accepted email 'delivered'.
-      let delivery = "pending";
-      const config: DeliveryConfig = await deps.rpc("waitlist_delivery_config").catch(() => ({ api_key: null, from_email: null, site_url: null }));
-      const configured = !!config.api_key && !!config.from_email && config.site_url === CANONICAL_ORIGIN;
-      if (result.job && configured) {
-        try {
-          const providerId = await deps.sendEmail(config, result.job);
-          await deps.rpc("record_waitlist_delivery", { p_job_id: result.job.id, p_succeeded: true, p_provider_id: providerId });
-          delivery = "accepted";
-        } catch {
-          await deps.rpc("record_waitlist_delivery", { p_job_id: result.job.id, p_succeeded: false, p_provider_id: null }).catch(() => {});
-        }
-      } else if (result.job) {
-        await deps.rpc("record_waitlist_delivery", { p_job_id: result.job.id, p_succeeded: false, p_provider_id: null }).catch(() => {});
-      }
-      if (action === "join") {
-        // Same shape for new, existing and opted-out addresses. A provider
-        // configuration outage is global, not an address-existence signal.
-        return reply(202, { status: "accepted", email_delivery: configured ? "pending" : "unavailable" });
-      }
-      return reply(200, {
-        status: result.status,
-        referral_code: result.referral_code ?? null,
-        unsubscribe_token: result.unsubscribe_token ?? null,
-        email_delivery: delivery,
-      });
+      if (result.status !== "accepted") throw new Error("unexpected_database_response");
+      // Same response for new, existing and opted-out addresses. No email,
+      // private tokens, individual status or reward credit is exposed.
+      return reply(202, { status: "accepted" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (["invalid_email", "invalid_referral", "invalid_request", "invalid_token"].includes(message)) return reply(400, { error: message });
@@ -127,21 +102,4 @@ export function createHandler(deps: Dependencies) {
       return reply(503, { error: "temporarily_unavailable" });
     }
   };
-}
-
-function escapeHtml(text: string) {
-  return text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
-}
-
-export function emailContent(config: DeliveryConfig, job: DeliveryJob) {
-  if (config.site_url !== CANONICAL_ORIGIN) throw new Error("email_unavailable");
-  const unsubscribe = `${config.site_url}/unsubscribe?token=${encodeURIComponent(job.unsubscribe_token)}`;
-  const link = job.kind === "verification"
-    ? `${config.site_url}/verify?token=${encodeURIComponent(job.token ?? "")}`
-    : `${config.site_url}/?ref=${encodeURIComponent(job.referral_code)}`;
-  const subject = job.kind === "verification" ? "Confirm your Prompt Launchpad waitlist request" : "Your Prompt Launchpad referral link";
-  const text = job.kind === "verification"
-    ? `Confirm your email for the Prompt Launchpad waitlist: ${link}\nThis link expires in 24 hours. If you did not request this, ignore it or opt out below.`
-    : `Your email is confirmed. Your personal referral link: ${link}`;
-  return { subject, text: `${text}\n\nOpt out: ${unsubscribe}`, html: `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p><p><a href="${escapeHtml(link)}">${job.kind === "verification" ? "Confirm email" : "Your referral link"}</a></p><p><a href="${escapeHtml(unsubscribe)}">Opt out of the waitlist</a></p>` };
 }

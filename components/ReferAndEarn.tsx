@@ -160,6 +160,9 @@ export default function ReferAndEarn({ referralLink }: Props) {
             <p style={{ margin: "8px 0 0", fontSize: 14, fontWeight: 300, color: "#003a42" }}>
               for each friend that you invite
             </p>
+            <p style={{ margin: "8px 0 0", fontSize: 12, fontWeight: 500, color: "#003a42" }}>
+              Referral rewards are currently inactive. Signups can record an invite source, but do not earn reward credits.
+            </p>
           </div>
           <div
             style={{

@@ -28,7 +28,13 @@ test("email boundaries reject oversized local parts and total length", () => {
 });
 
 test("error messages are actionable and never echo internal errors", () => {
-  assert.match(messageForError({ message: "rate_limited" }), /Try again in an hour/);
+  assert.match(messageForError({ message: "rate_limited" }), /Please wait a little/);
+  assert.match(messageForError({ message: "rate_limited", retryAfter: 61 }), /2 minutes/);
+  assert.match(messageForError({ message: "rate_limited", retryAfter: 1 }), /1 minute/);
+  assert.match(messageForError({ message: "rate_limited", retryAfter: Number.MAX_VALUE }), /1440 minutes/);
+  for (const retryAfter of [0, -1, Infinity, "SECRET", null]) {
+    assert.match(messageForError({ message: "rate_limited", retryAfter }), /Please wait a little/);
+  }
   assert.match(messageForError({ message: "invalid_email" }), /email address/);
   assert.match(messageForError({ message: "invalid_referral" }), /invite link/);
   for (const message of ["Failed to fetch", "NetworkError", "fetch failed", "request timed out", "Timeout"]) {
@@ -37,7 +43,7 @@ test("error messages are actionable and never echo internal errors", () => {
   for (const error of [new Error("database password SECRET in relation private_table"), undefined, { message: "23505 private constraint" }]) {
     assert.equal(messageForError(error), "Something went wrong. Try that again in a moment.");
   }
-  assert.equal(SIGNUP_ACCEPTED_MESSAGE, "Request received. Check your inbox; if no email arrives, try again after five minutes.");
+  assert.equal(SIGNUP_ACCEPTED_MESSAGE, "Thanks! Your signup request has been received.");
 });
 
 test("personal referral links cannot inherit preview or attacker origins", () => {
