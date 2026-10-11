@@ -18,15 +18,14 @@ const verify = await loadRoute("../app/verify/route.ts");
 const unsubscribe = await loadRoute("../app/unsubscribe/route.ts");
 const privacy = await loadRoute("../app/privacy/route.ts");
 const token = "a".repeat(64);
-const optout = "b".repeat(64);
 const site = "https://prompt-launchpad-waitlist.vercel.app";
 function formRequest(path, body = `token=${token}`, extraHeaders = {}) {
   return new Request(`${site}${path}`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", origin: site, ...extraHeaders }, body });
 }
 
-test("GET verification and unsubscribe are scanner-safe with private headers", async (t) => {
+test("GET unsubscribe is scanner-safe with private headers", async (t) => {
   const network = t.mock.method(globalThis, "fetch", () => { throw new Error("GET must never mutate"); });
-  for (const [route, path] of [[verify, "/verify"], [unsubscribe, "/unsubscribe"]]) {
+  for (const [route, path] of [[unsubscribe, "/unsubscribe"]]) {
     const response = route.GET(new Request(`${site}${path}?token=${token}`));
     assert.equal(response.status, 200);
     assert.match(response.headers.get("cache-control"), /no-store/);
@@ -44,25 +43,24 @@ test("join uses gateway, normalises email and forwards honeypot without private 
     assert.equal(options.headers.apikey, "test-publishable-placeholder");
     assert.equal(options.cache, "no-store");
     assert.deepEqual(JSON.parse(options.body), { action: "join", email: "test+1@example.com", referral: "ref123", website: "bot-value" });
-    return Response.json({ status: "accepted", email_delivery: "unavailable", referral_code: "must-not-leak" });
+    return Response.json({ status: "accepted", referral_code: "must-not-leak", already_joined: true, email_verified: false });
   });
   const result = await api.joinWaitlist("  TEST+1@Example.COM  ", "ref123", "https://untrusted.example", "bot-value");
-  assert.deepEqual(result, { status: "accepted", email_delivery: "unavailable" });
-  assert.match(api.SIGNUP_DELAYED_MESSAGE, /currently unavailable/);
+  assert.deepEqual(result, { status: "accepted" });
+  assert.doesNotMatch(api.SIGNUP_ACCEPTED_MESSAGE, /inbox|verification|email arrives/i);
   assert.equal(network.mock.calls.length, 1);
 });
 
-test("verify POST returns canonical referral and optout after gateway confirmation", async (t) => {
-  t.mock.method(globalThis, "fetch", async (_, options) => {
-    assert.deepEqual(JSON.parse(options.body), { action: "verify", token });
-    return Response.json({ status: "verified", referral_code: "abc123", referral_count: 0, unsubscribe_token: optout });
-  });
-  const response = await verify.POST(formRequest("/verify"));
-  const html = await response.text();
-  assert.equal(response.status, 200);
-  assert.match(html, /Email verified/);
-  assert.ok(html.includes(`${site}/?ref=abc123`));
-  assert.ok(html.includes(`/unsubscribe?token=${optout}`));
+test("legacy verification GET and POST never mutate or reveal referral data", async (t) => {
+  const network = t.mock.method(globalThis, "fetch", () => { throw new Error("verification retired"); });
+  for (const response of [verify.GET(new Request(`${site}/verify?token=${token}`)), verify.POST(formRequest("/verify")), verify.GET(new Request(`${site}/verify?token=bad`))]) {
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("cache-control"), /no-store/);
+    const html = await response.text();
+    assert.match(html, /Email verification is no longer required/);
+    assert.doesNotMatch(html, /<form|personal invite|unsubscribe\?token=/);
+  }
+  assert.equal(network.mock.calls.length, 0);
 });
 
 test("unsubscription POST mutates only after explicit valid form", async (t) => {
@@ -78,7 +76,7 @@ test("unsubscription POST mutates only after explicit valid form", async (t) => 
 
 test("invalid, duplicated, oversized and cross-origin token forms never call gateway", async (t) => {
   const network = t.mock.method(globalThis, "fetch", () => { throw new Error("unexpected network"); });
-  for (const route of [verify, unsubscribe]) {
+  for (const route of [unsubscribe]) {
     const requests = [
       formRequest("/verify", "token=invalid"),
       formRequest("/verify", `token=${token}&token=${token}`),
@@ -93,7 +91,7 @@ test("invalid, duplicated, oversized and cross-origin token forms never call gat
 
 test("gateway failures produce safe retry pages and rate-limit messages", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({ error: "database-password-SECRET" }, { status: 500 }));
-  for (const [route, path] of [[verify, "/verify"], [unsubscribe, "/unsubscribe"]]) {
+  for (const [route, path] of [[unsubscribe, "/unsubscribe"]]) {
     const response = await route.POST(formRequest(path));
     assert.equal(response.status, 503);
     const html = await response.text();
@@ -102,6 +100,24 @@ test("gateway failures produce safe retry pages and rate-limit messages", async 
   }
   globalThis.fetch = async () => Response.json({ error: "anything" }, { status: 429 });
   await assert.rejects(api.joinWaitlist("a@example.com", null, null), /rate_limited/);
+});
+
+test("signup accepts only acknowledgement status without provider state", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ status: "accepted" }, { status: 202 }));
+  assert.deepEqual(await api.joinWaitlist("a@example.com", null, null), { status: "accepted" });
+  for (const data of [null, {}, { status: "verified" }, { status: "failed", error: "SECRET" }]) {
+    globalThis.fetch = async () => Response.json(data);
+    await assert.rejects(api.joinWaitlist("a@example.com", null, null), /gateway_unavailable/);
+  }
+});
+
+test("rate-limit response uses numeric delay with safe header fallback", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ error: "rate_limited", retry_after: 61 }, { status: 429 }));
+  await assert.rejects(api.joinWaitlist("a@example.com", null, null), (error) => api.messageForError(error).includes("2 minutes"));
+  globalThis.fetch = async () => Response.json({ error: "rate_limited", retry_after: "invalid SECRET" }, { status: 429, headers: { "Retry-After": "120" } });
+  await assert.rejects(api.joinWaitlist("a@example.com", null, null), (error) => api.messageForError(error).includes("2 minutes"));
+  globalThis.fetch = async () => Response.json({ error: "rate_limited", retry_after: -10 }, { status: 429, headers: { "Retry-After": "arbitrary SECRET" } });
+  await assert.rejects(api.joinWaitlist("a@example.com", null, null), (error) => api.messageForError(error) === "Too many signup attempts. Please wait a little before trying again.");
 });
 
 test("gateway timeout aborts request and yields safe retry message", async (t) => {
@@ -118,7 +134,11 @@ test("privacy page explains processing and preference without analytics", async 
   const response = privacy.GET();
   const html = await response.text();
   assert.match(html, /Supabase/);
-  assert.match(html, /Unsubscribing suppresses/);
+  assert.match(html, /Opting out suppresses/);
+  assert.match(html, /eliot\.rbn18@gmail\.com/);
+  assert.match(html, /handled manually/);
+  assert.match(html, /Email ownership is not verified/);
+  assert.match(html, /no automated confirmation or verification email is currently sent/);
   assert.match(html, /30 days/);
   assert.match(html, /Google Analytics/);
   assert.doesNotMatch(html, /<script/);

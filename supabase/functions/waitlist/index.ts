@@ -1,4 +1,4 @@
-import { createHandler, emailContent } from "./handler.ts";
+import { createHandler } from "./handler.ts";
 
 const baseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -30,17 +30,6 @@ const handler = createHandler({
     const key = await crypto.subtle.importKey("raw", encoder.encode(serviceKey), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
     const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(ip));
     return Array.from(new Uint8Array(signature), b => b.toString(16).padStart(2, "0")).join("");
-  },
-  async sendEmail(config, job) {
-    const message = emailContent(config, job);
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST", headers: { Authorization: `Bearer ${config.api_key}`, "Content-Type": "application/json", "Idempotency-Key": `waitlist-${job.id}` },
-      body: JSON.stringify({ from: config.from_email, to: [job.to], ...message }), signal: AbortSignal.timeout(10000),
-    });
-    if (!response.ok) throw new Error("email_delivery_unavailable");
-    const body = await response.json();
-    if (typeof body.id !== "string") throw new Error("email_delivery_unavailable");
-    return body.id;
   },
 });
 
