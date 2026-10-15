@@ -296,9 +296,6 @@ export default function Home() {
           <p id="waitlist-status" role={showError ? "alert" : "status"} aria-live="polite" style={{ margin: "10px auto 0", maxWidth: 460, minHeight: 18, color: "#ffffff", fontSize: 12, lineHeight: 1.5 }}>
             {statusMessage || validationMessage || ""}
           </p>
-          <p style={{ margin: "8px auto 0", maxWidth: 460, color: "#e2eeff", fontSize: 11, lineHeight: 1.5 }}>
-            By joining, you agree to receive Prompt Launchpad waitlist and launch updates. To opt out, email <a href="mailto:eliot.rbn18@gmail.com" style={{ color: "inherit", textDecoration: "underline" }}>eliot.rbn18@gmail.com</a> from the address you used. <a href="/privacy" style={{ color: "inherit", textDecoration: "underline" }}>Privacy and email preferences</a>
-          </p>
 
           <div style={{ marginTop: 20, fontSize: 15, fontWeight: 400, color: "#cfe0fb", zoom: 0.9091 }}>
             Join {grouped(totalSignups)}+ on the waitlist
