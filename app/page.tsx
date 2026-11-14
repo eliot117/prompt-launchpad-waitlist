@@ -10,6 +10,7 @@ import BeforeAfter from "@/components/BeforeAfter";
 import ReferAndEarn from "@/components/ReferAndEarn";
 import ShareButton from "@/components/ShareButton";
 import { emailValidationError, joinWaitlist, messageForError, normaliseEmail, SIGNUP_ACCEPTED_MESSAGE, waitlistCount } from "@/lib/supabase";
+import { trackWaitlistAccepted } from "@/lib/analytics";
 import { PRODUCTION_ORIGIN } from "@/lib/referral";
 
 const STORAGE_KEY = "pl_waitlist_signup";
@@ -114,6 +115,7 @@ export default function Home() {
       const urlRef = params.get("ref");
       const ref = urlRef && REF_CODE_RE.test(urlRef) ? urlRef : recallRef();
       await joinWaitlist(canonicalEmail, ref, PRODUCTION_ORIGIN, website);
+      trackWaitlistAccepted();
       setSubmitted(true);
       setStatusMessage(SIGNUP_ACCEPTED_MESSAGE);
       setEmail("");
@@ -167,13 +169,13 @@ export default function Home() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 0, fontSize: 12, fontWeight: 500, color: "#3c3c43", whiteSpace: "nowrap" }}>
-                <a href="#features" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", flex: 1, textAlign: "right", paddingRight: 80 }}>Features</a>
+                <a href="#before-after" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", flex: 1, textAlign: "right", paddingRight: 80 }}>Example</a>
                 <a href="#early" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", padding: "0 80px" }}>Join Waiting List</a>
                 <a href="#before-after" style={{ color: "#3c3c43", textDecoration: "none", transition: "color 0.2s", flex: 1, textAlign: "left", paddingLeft: 80 }}>Before/After</a>
               </div>
               <div style={{ position: "absolute", right: "4%", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
                 <a href="#early" className="shiny-btn" style={{ fontSize: 11, fontWeight: 500, padding: "8px 15px", borderRadius: 7, backgroundColor: "#1877f2", color: "#ffffff", border: "none", transition: "background-position 0.3s" }}>
-                  Get Early Access
+                  Join the waitlist
                 </a>
               </div>
             </div>
@@ -189,7 +191,7 @@ export default function Home() {
                 Prompt Launchpad is an AI-powered solution designed to refine your raw input, structure your prompts, and generate production-ready Master Prompts for any AI model.
               </p>
               <a href="#early" className="shiny-btn" style={{ display: "inline-block", marginTop: 26, backgroundColor: "#1877f2", color: "#ffffff", fontSize: 16, fontWeight: 500, padding: "17px 32px", borderRadius: 10, whiteSpace: "nowrap", border: "none", transition: "background-position 0.3s" }}>
-                Get Early Access
+                Join the waitlist
               </a>
             </div>
 
@@ -316,6 +318,9 @@ export default function Home() {
           </div>
 
           <div style={{ marginTop: "auto", paddingTop: 32 }}>
+            <a href="/how-it-works" style={{ color: "#ffffff", fontSize: 12 }}>How it works</a>{" · "}
+            <a href="/about" style={{ color: "#ffffff", fontSize: 12 }}>About</a>{" · "}
+            <a href="/privacy" style={{ color: "#ffffff", fontSize: 12 }}>Privacy</a>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 20 }}>
               <Image src="/assets/prompt-launchpad-logo.png" alt="Prompt Launchpad" width={48} height={48} style={{ objectFit: "contain", display: "block", flexShrink: 0 }} />
               <span style={{ fontSize: 16, fontWeight: 500, letterSpacing: -0.2, whiteSpace: "nowrap", lineHeight: 1, color: "#ffffff" }}>

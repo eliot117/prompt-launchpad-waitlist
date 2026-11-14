@@ -16,7 +16,6 @@ async function loadRoute(relativePath) {
 }
 const verify = await loadRoute("../app/verify/route.ts");
 const unsubscribe = await loadRoute("../app/unsubscribe/route.ts");
-const privacy = await loadRoute("../app/privacy/route.ts");
 const token = "a".repeat(64);
 const site = "https://prompt-launchpad-waitlist.vercel.app";
 function formRequest(path, body = `token=${token}`, extraHeaders = {}) {
@@ -131,15 +130,14 @@ test("gateway timeout aborts request and yields safe retry message", async (t) =
 });
 
 test("privacy page explains processing and preference without analytics", async () => {
-  const response = privacy.GET();
-  const html = await response.text();
-  assert.match(html, /Supabase/);
-  assert.match(html, /Opting out suppresses/);
-  assert.match(html, /eliot\.rbn18@gmail\.com/);
-  assert.match(html, /handled manually/);
-  assert.match(html, /Email ownership is not verified/);
-  assert.match(html, /no automated confirmation or verification email is currently sent/);
-  assert.match(html, /30 days/);
-  assert.match(html, /Google Analytics/);
-  assert.doesNotMatch(html, /<script/);
+  const source = await readFile(new URL("../app/privacy/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /Supabase/);
+  assert.match(source, /Opting out suppresses/);
+  assert.match(source, /mailto:eliot\.rbn18@gmail\.com/);
+  assert.match(source, /handled manually/);
+  assert.match(source, /Email ownership is not verified/);
+  assert.match(source, /no automated confirmation or verification email is currently sent/);
+  assert.match(source, /30 days/);
+  assert.match(source, /Google Analytics/);
+  assert.doesNotMatch(source, /<script/);
 });

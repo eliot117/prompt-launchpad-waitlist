@@ -12,10 +12,12 @@ const poppins = Poppins({
 const SITE_URL = "https://prompt-launchpad-waitlist.vercel.app";
 const LOGO_URL = `${SITE_URL}/assets/prompt-launchpad-logo.png`;
 const GOOGLE_TAG_ID = "G-E84WT06HES";
+// Local review builds must not create traffic in the production GA4 property.
+const ANALYTICS_ENABLED = process.env.NEXT_PUBLIC_DISABLE_ANALYTICS !== "1";
 
-const TITLE = "Prompt Launchpad — Write Better AI Prompts with Elia";
+const TITLE = "Prompt Launchpad - Revolutionizing your Prompts with Elia.";
 const DESCRIPTION =
-  "Prompt Launchpad turns any rough idea into a production-ready Master Prompt for any AI — written by Elia. Join the waitlist and start earning referral rewards.";
+  "Prompt Launchpad is an AI-powered solution designed to refine your raw input, structure your prompts, and generate production-ready Master Prompts for any AI model.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -52,29 +54,33 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#1877f2" };
 
 /**
- * Emitted as JSON-LD rather than via `metadata`, which has no vehicle for
- * arbitrary structured data. `availability: PreOrder` is the honest signal
- * while this is a waitlist rather than a shipped product.
+ * Public entity information only. Joining a waitlist does not establish a
+ * software price, subscription offer, or preorder.
  */
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      name: "Prompt Launchpad",
+      url: SITE_URL,
+    },
+    {
       "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#software`,
+      publisher: { "@id": `${SITE_URL}/#organization` },
       name: "Prompt Launchpad",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       url: SITE_URL,
       description: DESCRIPTION,
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-        availability: "https://schema.org/PreOrder",
-      },
+
     },
     {
       "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
       name: "Prompt Launchpad",
       url: SITE_URL,
       logo: LOGO_URL,
@@ -92,6 +98,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={poppins.variable}>
       <head>
+        {ANALYTICS_ENABLED ? <>
         <script async src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}`} />
         <script
           dangerouslySetInnerHTML={{
@@ -103,6 +110,7 @@ export default function RootLayout({
             `,
           }}
         />
+        </> : null}
       </head>
       <body className="font-sans">
         <script
